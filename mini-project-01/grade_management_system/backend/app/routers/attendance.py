@@ -37,9 +37,9 @@ async def get_attendance(
     query = db.query(Attendance).options(joinedload(Attendance.student))
 
     if class_id:
-        query = query.filter(Attendance.class_id == class_id)
+        query = query.filter(Attendance.class_id == str(class_id))
     if student_id:
-        query = query.filter(Attendance.student_id == student_id)
+        query = query.filter(Attendance.student_id == str(student_id))
     if session_no:
         query = query.filter(Attendance.session_no == session_no)
     if date_from:
@@ -88,8 +88,8 @@ async def create_attendance(
     """출결 입력"""
     # Check if already exists
     existing = db.query(Attendance).filter(
-        Attendance.student_id == attendance.student_id,
-        Attendance.class_id == attendance.class_id,
+        Attendance.student_id == str(attendance.student_id),
+        Attendance.class_id == str(attendance.class_id),
         Attendance.session_no == attendance.session_no
     ).first()
 
@@ -99,9 +99,12 @@ async def create_attendance(
             detail="해당 회차의 출결 기록이 이미 존재합니다"
         )
 
+    attendance_data = attendance.model_dump()
+    attendance_data['student_id'] = str(attendance.student_id)
+    attendance_data['class_id'] = str(attendance.class_id)
     db_attendance = Attendance(
-        **attendance.model_dump(),
-        created_by=current_user.id
+        **attendance_data,
+        created_by=str(current_user.id)
     )
     db.add(db_attendance)
     db.commit()
@@ -120,9 +123,10 @@ async def create_bulk_attendance(
 
     for record in bulk_data.records:
         # Check if already exists
+        student_id_str = str(record["student_id"])
         existing = db.query(Attendance).filter(
-            Attendance.student_id == record["student_id"],
-            Attendance.class_id == bulk_data.class_id,
+            Attendance.student_id == student_id_str,
+            Attendance.class_id == str(bulk_data.class_id),
             Attendance.session_no == bulk_data.session_no
         ).first()
 
@@ -130,13 +134,13 @@ async def create_bulk_attendance(
             continue
 
         db_attendance = Attendance(
-            student_id=record["student_id"],
-            class_id=bulk_data.class_id,
+            student_id=student_id_str,
+            class_id=str(bulk_data.class_id),
             session_no=bulk_data.session_no,
             date=bulk_data.date,
             status=AttendanceStatus(record.get("status", "출석")),
             notes=record.get("notes"),
-            created_by=current_user.id
+            created_by=str(current_user.id)
         )
         db.add(db_attendance)
         created_records.append(db_attendance)
@@ -157,7 +161,7 @@ async def get_attendance_detail(
     """출결 상세 조회"""
     record = db.query(Attendance).options(
         joinedload(Attendance.student)
-    ).filter(Attendance.id == attendance_id).first()
+    ).filter(Attendance.id == str(attendance_id)).first()
 
     if not record:
         raise HTTPException(
@@ -176,7 +180,7 @@ async def update_attendance(
     current_user: User = Depends(require_roles(["admin", "teacher"]))
 ):
     """출결 수정 (변경 이력 기록)"""
-    record = db.query(Attendance).filter(Attendance.id == attendance_id).first()
+    record = db.query(Attendance).filter(Attendance.id == str(attendance_id)).first()
     if not record:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -186,8 +190,8 @@ async def update_attendance(
     # Create change log
     if attendance_update.status and attendance_update.status != record.status:
         log = AttendanceLog(
-            attendance_id=attendance_id,
-            changed_by=current_user.id,
+            attendance_id=str(attendance_id),
+            changed_by=str(current_user.id),
             old_status=record.status,
             new_status=attendance_update.status,
             reason=attendance_update.change_reason
@@ -212,7 +216,7 @@ async def get_attendance_logs(
 ):
     """출결 변경 이력 조회"""
     logs = db.query(AttendanceLog).filter(
-        AttendanceLog.attendance_id == attendance_id
+        AttendanceLog.attendance_id == str(attendance_id)
     ).order_by(AttendanceLog.changed_at.desc()).all()
 
     return logs
@@ -229,7 +233,7 @@ async def get_class_attendance_summary(
     """반별 출결 현황"""
     from app.models.course import Class
 
-    cls = db.query(Class).filter(Class.id == class_id).first()
+    cls = db.query(Class).filter(Class.id == str(class_id)).first()
     if not cls:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -237,12 +241,12 @@ async def get_class_attendance_summary(
         )
 
     total_students = db.query(Enrollment).filter(
-        Enrollment.class_id == class_id,
+        Enrollment.class_id == str(class_id),
         Enrollment.dropped_at.is_(None)
     ).count()
 
     records = db.query(Attendance).filter(
-        Attendance.class_id == class_id,
+        Attendance.class_id == str(class_id),
         Attendance.session_no == session_no,
         Attendance.date == target_date
     ).all()
@@ -274,7 +278,7 @@ async def get_student_attendance_summary(
     current_user: User = Depends(get_current_active_user)
 ):
     """학생별 출결 집계"""
-    student = db.query(Student).options(joinedload(Student.user)).filter(Student.id == student_id).first()
+    student = db.query(Student).options(joinedload(Student.user)).filter(Student.id == str(student_id)).first()
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -289,8 +293,8 @@ async def get_student_attendance_summary(
         )
 
     records = db.query(Attendance).filter(
-        Attendance.student_id == student_id,
-        Attendance.class_id == class_id
+        Attendance.student_id == str(student_id),
+        Attendance.class_id == str(class_id)
     ).all()
 
     total_sessions = len(records)

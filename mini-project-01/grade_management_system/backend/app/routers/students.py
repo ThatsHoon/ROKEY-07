@@ -35,7 +35,7 @@ async def get_students(
             (Student.student_number.ilike(f"%{search}%"))
         )
     if class_id:
-        query = query.join(Enrollment).filter(Enrollment.class_id == class_id)
+        query = query.join(Enrollment).filter(Enrollment.class_id == str(class_id))
 
     students = query.offset(skip).limit(limit).all()
 
@@ -138,7 +138,7 @@ async def get_student(
     current_user: User = Depends(get_current_active_user)
 ):
     """학생 상세 조회"""
-    student = db.query(Student).options(joinedload(Student.user)).filter(Student.id == student_id).first()
+    student = db.query(Student).options(joinedload(Student.user)).filter(Student.id == str(student_id)).first()
 
     if not student:
         raise HTTPException(
@@ -175,7 +175,7 @@ async def update_student(
     current_user: User = Depends(require_roles(["admin", "staff"]))
 ):
     """학생 정보 수정"""
-    student = db.query(Student).filter(Student.id == student_id).first()
+    student = db.query(Student).filter(Student.id == str(student_id)).first()
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -211,7 +211,7 @@ async def delete_student(
     current_user: User = Depends(require_roles(["admin"]))
 ):
     """학생 삭제 (상태 변경)"""
-    student = db.query(Student).filter(Student.id == student_id).first()
+    student = db.query(Student).filter(Student.id == str(student_id)).first()
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -234,7 +234,7 @@ async def enroll_student(
     current_user: User = Depends(require_roles(["admin", "staff"]))
 ):
     """수강 신청"""
-    student = db.query(Student).filter(Student.id == student_id).first()
+    student = db.query(Student).filter(Student.id == str(student_id)).first()
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -243,8 +243,8 @@ async def enroll_student(
 
     # Check if already enrolled
     existing = db.query(Enrollment).filter(
-        Enrollment.student_id == student_id,
-        Enrollment.class_id == enrollment.class_id,
+        Enrollment.student_id == str(student_id),
+        Enrollment.class_id == str(enrollment.class_id),
         Enrollment.dropped_at.is_(None)
     ).first()
     if existing:
@@ -254,8 +254,8 @@ async def enroll_student(
         )
 
     db_enrollment = Enrollment(
-        student_id=student_id,
-        class_id=enrollment.class_id
+        student_id=str(student_id),
+        class_id=str(enrollment.class_id)
     )
     db.add(db_enrollment)
     db.commit()
@@ -271,6 +271,6 @@ async def get_student_enrollments(
 ):
     """학생 수강 목록 조회"""
     enrollments = db.query(Enrollment).filter(
-        Enrollment.student_id == student_id
+        Enrollment.student_id == str(student_id)
     ).all()
     return enrollments

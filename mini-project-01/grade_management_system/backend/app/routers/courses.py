@@ -8,7 +8,7 @@ from app.models.user import User
 from app.models.course import Course, Class, Enrollment
 from app.schemas.course import (
     CourseCreate, CourseUpdate, CourseResponse,
-    ClassCreate, ClassUpdate, ClassResponse,
+    ClassBase, ClassCreate, ClassUpdate, ClassResponse,
     EnrollmentResponse
 )
 from app.utils.security import get_current_active_user, require_roles
@@ -88,7 +88,7 @@ async def get_course(
     current_user: User = Depends(get_current_active_user)
 ):
     """과정 상세 조회"""
-    course = db.query(Course).options(joinedload(Course.teacher)).filter(Course.id == course_id).first()
+    course = db.query(Course).options(joinedload(Course.teacher)).filter(Course.id == str(course_id)).first()
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -118,7 +118,7 @@ async def update_course(
     current_user: User = Depends(require_roles(["admin"]))
 ):
     """과정 수정"""
-    course = db.query(Course).filter(Course.id == course_id).first()
+    course = db.query(Course).filter(Course.id == str(course_id)).first()
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -153,7 +153,7 @@ async def delete_course(
     current_user: User = Depends(require_roles(["admin"]))
 ):
     """과정 삭제"""
-    course = db.query(Course).filter(Course.id == course_id).first()
+    course = db.query(Course).filter(Course.id == str(course_id)).first()
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -173,7 +173,7 @@ async def get_classes(
     current_user: User = Depends(get_current_active_user)
 ):
     """과정의 반 목록 조회"""
-    classes = db.query(Class).filter(Class.course_id == course_id).all()
+    classes = db.query(Class).filter(Class.course_id == str(course_id)).all()
 
     result = []
     for cls in classes:
@@ -200,12 +200,12 @@ async def get_classes(
 @router.post("/{course_id}/classes", response_model=ClassResponse, status_code=status.HTTP_201_CREATED)
 async def create_class(
     course_id: UUID,
-    class_data: ClassCreate,
+    class_data: ClassBase,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(["admin"]))
 ):
     """반 생성"""
-    course = db.query(Course).filter(Course.id == course_id).first()
+    course = db.query(Course).filter(Course.id == str(course_id)).first()
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -213,7 +213,7 @@ async def create_class(
         )
 
     db_class = Class(
-        course_id=course_id,
+        course_id=str(course_id),
         name=class_data.name,
         capacity=class_data.capacity,
         schedule=class_data.schedule
@@ -241,7 +241,7 @@ async def get_class(
     current_user: User = Depends(get_current_active_user)
 ):
     """반 상세 조회"""
-    cls = db.query(Class).options(joinedload(Class.course)).filter(Class.id == class_id).first()
+    cls = db.query(Class).options(joinedload(Class.course)).filter(Class.id == str(class_id)).first()
     if not cls:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -249,7 +249,7 @@ async def get_class(
         )
 
     student_count = db.query(Enrollment).filter(
-        Enrollment.class_id == class_id,
+        Enrollment.class_id == str(class_id),
         Enrollment.dropped_at.is_(None)
     ).count()
 
@@ -274,7 +274,7 @@ async def update_class(
     current_user: User = Depends(require_roles(["admin"]))
 ):
     """반 수정"""
-    cls = db.query(Class).filter(Class.id == class_id).first()
+    cls = db.query(Class).filter(Class.id == str(class_id)).first()
     if not cls:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -297,7 +297,7 @@ async def delete_class(
     current_user: User = Depends(require_roles(["admin"]))
 ):
     """반 삭제"""
-    cls = db.query(Class).filter(Class.id == class_id).first()
+    cls = db.query(Class).filter(Class.id == str(class_id)).first()
     if not cls:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -318,7 +318,7 @@ async def get_class_students(
     enrollments = db.query(Enrollment).options(
         joinedload(Enrollment.student)
     ).filter(
-        Enrollment.class_id == class_id,
+        Enrollment.class_id == str(class_id),
         Enrollment.dropped_at.is_(None)
     ).all()
 

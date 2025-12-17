@@ -47,7 +47,7 @@ class ClassBase(BaseModel):
 
 
 class ClassCreate(ClassBase):
-    course_id: UUID
+    course_id: Optional[UUID] = None  # Optional because path parameter provides it
 
 
 class ClassUpdate(BaseModel):

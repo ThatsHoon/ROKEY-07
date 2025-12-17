@@ -35,7 +35,7 @@ async def get_evaluations(
     query = db.query(Evaluation).options(joinedload(Evaluation.course))
 
     if course_id:
-        query = query.filter(Evaluation.course_id == course_id)
+        query = query.filter(Evaluation.course_id == str(course_id))
     if type:
         query = query.filter(Evaluation.type == type)
 
@@ -69,7 +69,7 @@ async def create_evaluation(
 ):
     """평가항목 생성"""
     # Check course exists
-    course = db.query(Course).filter(Course.id == evaluation.course_id).first()
+    course = db.query(Course).filter(Course.id == str(evaluation.course_id)).first()
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -78,7 +78,7 @@ async def create_evaluation(
 
     # Check total weight doesn't exceed 100%
     existing_weight = db.query(func.sum(Evaluation.weight)).filter(
-        Evaluation.course_id == evaluation.course_id
+        Evaluation.course_id == str(evaluation.course_id)
     ).scalar() or 0
 
     if existing_weight + float(evaluation.weight) > 100:
@@ -87,7 +87,9 @@ async def create_evaluation(
             detail=f"가중치 합계가 100%를 초과합니다 (현재: {existing_weight}%)"
         )
 
-    db_evaluation = Evaluation(**evaluation.model_dump())
+    eval_data = evaluation.model_dump()
+    eval_data['course_id'] = str(evaluation.course_id)
+    db_evaluation = Evaluation(**eval_data)
     db.add(db_evaluation)
     db.commit()
     db.refresh(db_evaluation)
@@ -103,7 +105,7 @@ async def get_evaluation(
     """평가항목 상세 조회"""
     evaluation = db.query(Evaluation).options(
         joinedload(Evaluation.course)
-    ).filter(Evaluation.id == evaluation_id).first()
+    ).filter(Evaluation.id == str(evaluation_id)).first()
 
     if not evaluation:
         raise HTTPException(
@@ -122,7 +124,7 @@ async def update_evaluation(
     current_user: User = Depends(require_roles(["admin", "teacher"]))
 ):
     """평가항목 수정"""
-    evaluation = db.query(Evaluation).filter(Evaluation.id == evaluation_id).first()
+    evaluation = db.query(Evaluation).filter(Evaluation.id == str(evaluation_id)).first()
     if not evaluation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -135,7 +137,7 @@ async def update_evaluation(
     if "weight" in update_data:
         other_weight = db.query(func.sum(Evaluation.weight)).filter(
             Evaluation.course_id == evaluation.course_id,
-            Evaluation.id != evaluation_id
+            Evaluation.id != str(evaluation_id)
         ).scalar() or 0
 
         if other_weight + float(update_data["weight"]) > 100:
@@ -159,7 +161,7 @@ async def delete_evaluation(
     current_user: User = Depends(require_roles(["admin"]))
 ):
     """평가항목 삭제"""
-    evaluation = db.query(Evaluation).filter(Evaluation.id == evaluation_id).first()
+    evaluation = db.query(Evaluation).filter(Evaluation.id == str(evaluation_id)).first()
     if not evaluation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -189,11 +191,11 @@ async def get_grades(
     )
 
     if evaluation_id:
-        query = query.filter(Grade.evaluation_id == evaluation_id)
+        query = query.filter(Grade.evaluation_id == str(evaluation_id))
     if student_id:
-        query = query.filter(Grade.student_id == student_id)
+        query = query.filter(Grade.student_id == str(student_id))
     if course_id:
-        query = query.join(Evaluation).filter(Evaluation.course_id == course_id)
+        query = query.join(Evaluation).filter(Evaluation.course_id == str(course_id))
 
     # Students can only see their own grades
     if current_user.role.name == "student":
@@ -235,7 +237,7 @@ async def create_grade(
 ):
     """성적 입력"""
     # Check evaluation exists
-    evaluation = db.query(Evaluation).filter(Evaluation.id == grade.evaluation_id).first()
+    evaluation = db.query(Evaluation).filter(Evaluation.id == str(grade.evaluation_id)).first()
     if not evaluation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -251,8 +253,8 @@ async def create_grade(
 
     # Check if already exists
     existing = db.query(Grade).filter(
-        Grade.evaluation_id == grade.evaluation_id,
-        Grade.student_id == grade.student_id
+        Grade.evaluation_id == str(grade.evaluation_id),
+        Grade.student_id == str(grade.student_id)
     ).first()
 
     if existing:
@@ -261,9 +263,12 @@ async def create_grade(
             detail="해당 학생의 성적이 이미 존재합니다"
         )
 
+    grade_data = grade.model_dump()
+    grade_data['evaluation_id'] = str(grade.evaluation_id)
+    grade_data['student_id'] = str(grade.student_id)
     db_grade = Grade(
-        **grade.model_dump(),
-        graded_by=current_user.id,
+        **grade_data,
+        graded_by=str(current_user.id),
         graded_at=datetime.utcnow()
     )
     db.add(db_grade)
@@ -279,7 +284,7 @@ async def create_bulk_grades(
     current_user: User = Depends(require_roles(["admin", "teacher"]))
 ):
     """성적 일괄 입력"""
-    evaluation = db.query(Evaluation).filter(Evaluation.id == bulk_data.evaluation_id).first()
+    evaluation = db.query(Evaluation).filter(Evaluation.id == str(bulk_data.evaluation_id)).first()
     if not evaluation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -289,10 +294,11 @@ async def create_bulk_grades(
     created_grades = []
 
     for grade_data in bulk_data.grades:
+        student_id_str = str(grade_data["student_id"])
         # Check if already exists
         existing = db.query(Grade).filter(
-            Grade.evaluation_id == bulk_data.evaluation_id,
-            Grade.student_id == grade_data["student_id"]
+            Grade.evaluation_id == str(bulk_data.evaluation_id),
+            Grade.student_id == student_id_str
         ).first()
 
         if existing:
@@ -303,11 +309,11 @@ async def create_bulk_grades(
             continue
 
         db_grade = Grade(
-            evaluation_id=bulk_data.evaluation_id,
-            student_id=grade_data["student_id"],
+            evaluation_id=str(bulk_data.evaluation_id),
+            student_id=student_id_str,
             score=score,
             comments=grade_data.get("comments"),
-            graded_by=current_user.id,
+            graded_by=str(current_user.id),
             graded_at=datetime.utcnow()
         )
         db.add(db_grade)
@@ -330,7 +336,7 @@ async def get_grade(
     grade = db.query(Grade).options(
         joinedload(Grade.evaluation),
         joinedload(Grade.student)
-    ).filter(Grade.id == grade_id).first()
+    ).filter(Grade.id == str(grade_id)).first()
 
     if not grade:
         raise HTTPException(
@@ -349,7 +355,7 @@ async def update_grade(
     current_user: User = Depends(require_roles(["admin", "teacher"]))
 ):
     """성적 수정"""
-    grade = db.query(Grade).options(joinedload(Grade.evaluation)).filter(Grade.id == grade_id).first()
+    grade = db.query(Grade).options(joinedload(Grade.evaluation)).filter(Grade.id == str(grade_id)).first()
     if not grade:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -367,7 +373,7 @@ async def update_grade(
     for field, value in update_data.items():
         setattr(grade, field, value)
 
-    grade.graded_by = current_user.id
+    grade.graded_by = str(current_user.id)
     grade.graded_at = datetime.utcnow()
 
     db.commit()
@@ -382,7 +388,7 @@ async def delete_grade(
     current_user: User = Depends(require_roles(["admin"]))
 ):
     """성적 삭제"""
-    grade = db.query(Grade).filter(Grade.id == grade_id).first()
+    grade = db.query(Grade).filter(Grade.id == str(grade_id)).first()
     if not grade:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -401,7 +407,7 @@ async def get_student_grade_summary(
     current_user: User = Depends(get_current_active_user)
 ):
     """학생별 성적 요약 (자동 산출)"""
-    student = db.query(Student).options(joinedload(Student.user)).filter(Student.id == student_id).first()
+    student = db.query(Student).options(joinedload(Student.user)).filter(Student.id == str(student_id)).first()
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -415,7 +421,7 @@ async def get_student_grade_summary(
             detail="접근 권한이 없습니다"
         )
 
-    course = db.query(Course).filter(Course.id == course_id).first()
+    course = db.query(Course).filter(Course.id == str(course_id)).first()
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -424,8 +430,8 @@ async def get_student_grade_summary(
 
     # Get all grades for this student in this course
     grades = db.query(Grade).join(Evaluation).filter(
-        Grade.student_id == student_id,
-        Evaluation.course_id == course_id
+        Grade.student_id == str(student_id),
+        Evaluation.course_id == str(course_id)
     ).options(joinedload(Grade.evaluation)).all()
 
     # Calculate weighted total

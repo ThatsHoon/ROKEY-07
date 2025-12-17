@@ -31,7 +31,7 @@ async def export_attendance_excel(
     from openpyxl import Workbook
     from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
-    cls = db.query(Class).options(joinedload(Class.course)).filter(Class.id == class_id).first()
+    cls = db.query(Class).options(joinedload(Class.course)).filter(Class.id == str(class_id)).first()
     if not cls:
         raise HTTPException(status_code=404, detail="반을 찾을 수 없습니다")
 
@@ -39,12 +39,12 @@ async def export_attendance_excel(
     enrollments = db.query(Enrollment).options(
         joinedload(Enrollment.student)
     ).filter(
-        Enrollment.class_id == class_id,
+        Enrollment.class_id == str(class_id),
         Enrollment.dropped_at.is_(None)
     ).all()
 
     # Get attendance records
-    query = db.query(Attendance).filter(Attendance.class_id == class_id)
+    query = db.query(Attendance).filter(Attendance.class_id == str(class_id))
     if date_from:
         query = query.filter(Attendance.date >= date_from)
     if date_to:
@@ -137,26 +137,29 @@ async def export_attendance_excel(
         ws.cell(row=row_idx, column=col_offset + 3, value=f"{rate:.1f}%").border = thin_border
 
     # Auto-adjust column widths
-    for column in ws.columns:
+    from openpyxl.utils import get_column_letter
+    for col_idx, column in enumerate(ws.columns, 1):
         max_length = 0
-        column_letter = column[0].column_letter
+        column_letter = get_column_letter(col_idx)
         for cell in column:
             try:
-                if len(str(cell.value)) > max_length:
+                if cell.value and len(str(cell.value)) > max_length:
                     max_length = len(str(cell.value))
             except:
                 pass
-        ws.column_dimensions[column_letter].width = max_length + 2
+        ws.column_dimensions[column_letter].width = max(max_length + 2, 8)
 
     # Save to buffer
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
 
+    from urllib.parse import quote
+    encoded_filename = quote(f"attendance_{cls.name}.xlsx")
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename=attendance_{cls.name}.xlsx"}
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
 
 
@@ -177,18 +180,18 @@ async def export_attendance_pdf(
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
 
-    cls = db.query(Class).options(joinedload(Class.course)).filter(Class.id == class_id).first()
+    cls = db.query(Class).options(joinedload(Class.course)).filter(Class.id == str(class_id)).first()
     if not cls:
         raise HTTPException(status_code=404, detail="반을 찾을 수 없습니다")
 
     enrollments = db.query(Enrollment).options(
         joinedload(Enrollment.student)
     ).filter(
-        Enrollment.class_id == class_id,
+        Enrollment.class_id == str(class_id),
         Enrollment.dropped_at.is_(None)
     ).all()
 
-    query = db.query(Attendance).filter(Attendance.class_id == class_id)
+    query = db.query(Attendance).filter(Attendance.class_id == str(class_id))
     if date_from:
         query = query.filter(Attendance.date >= date_from)
     if date_to:
@@ -280,10 +283,12 @@ async def export_attendance_pdf(
     doc.build(elements)
     output.seek(0)
 
+    from urllib.parse import quote
+    encoded_filename = quote(f"attendance_{cls.name}.pdf")
     return StreamingResponse(
         output,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=attendance_{cls.name}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
 
 
@@ -299,15 +304,15 @@ async def export_grades_excel(
     from openpyxl import Workbook
     from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
-    course = db.query(Course).filter(Course.id == course_id).first()
+    course = db.query(Course).filter(Course.id == str(course_id)).first()
     if not course:
         raise HTTPException(status_code=404, detail="과정을 찾을 수 없습니다")
 
     # Get evaluations
-    evaluations = db.query(Evaluation).filter(Evaluation.course_id == course_id).all()
+    evaluations = db.query(Evaluation).filter(Evaluation.course_id == str(course_id)).all()
 
     # Get students enrolled in this course
-    classes = db.query(Class).filter(Class.course_id == course_id).all()
+    classes = db.query(Class).filter(Class.course_id == str(course_id)).all()
     class_ids = [c.id for c in classes]
 
     enrollments = db.query(Enrollment).options(
@@ -390,25 +395,28 @@ async def export_grades_excel(
         ws.cell(row=row_idx, column=col_offset + 1, value=calculate_letter_grade(total_weighted)).border = thin_border
 
     # Auto-adjust column widths
-    for column in ws.columns:
+    from openpyxl.utils import get_column_letter
+    for col_idx, column in enumerate(ws.columns, 1):
         max_length = 0
-        column_letter = column[0].column_letter
+        column_letter = get_column_letter(col_idx)
         for cell in column:
             try:
-                if len(str(cell.value)) > max_length:
+                if cell.value and len(str(cell.value)) > max_length:
                     max_length = len(str(cell.value))
             except:
                 pass
-        ws.column_dimensions[column_letter].width = max_length + 2
+        ws.column_dimensions[column_letter].width = max(max_length + 2, 8)
 
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
 
+    from urllib.parse import quote
+    encoded_filename = quote(f"grades_{course.code}.xlsx")
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename=grades_{course.code}.xlsx"}
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
 
 
@@ -425,13 +433,13 @@ async def export_grades_pdf(
     from reportlab.lib.units import mm
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
-    course = db.query(Course).filter(Course.id == course_id).first()
+    course = db.query(Course).filter(Course.id == str(course_id)).first()
     if not course:
         raise HTTPException(status_code=404, detail="과정을 찾을 수 없습니다")
 
-    evaluations = db.query(Evaluation).filter(Evaluation.course_id == course_id).all()
+    evaluations = db.query(Evaluation).filter(Evaluation.course_id == str(course_id)).all()
 
-    classes = db.query(Class).filter(Class.course_id == course_id).all()
+    classes = db.query(Class).filter(Class.course_id == str(course_id)).all()
     class_ids = [c.id for c in classes]
 
     enrollments = db.query(Enrollment).options(
@@ -505,10 +513,12 @@ async def export_grades_pdf(
     doc.build(elements)
     output.seek(0)
 
+    from urllib.parse import quote
+    encoded_filename = quote(f"grades_{course.code}.pdf")
     return StreamingResponse(
         output,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=grades_{course.code}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
 
 
@@ -525,7 +535,7 @@ async def export_student_transcript(
     from reportlab.lib.units import mm
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
-    student = db.query(Student).options(joinedload(Student.user)).filter(Student.id == student_id).first()
+    student = db.query(Student).options(joinedload(Student.user)).filter(Student.id == str(student_id)).first()
     if not student:
         raise HTTPException(status_code=404, detail="학생을 찾을 수 없습니다")
 
@@ -536,7 +546,7 @@ async def export_student_transcript(
     # Get all grades for this student
     grades = db.query(Grade).options(
         joinedload(Grade.evaluation)
-    ).filter(Grade.student_id == student_id).all()
+    ).filter(Grade.student_id == str(student_id)).all()
 
     # Create PDF
     output = io.BytesIO()
@@ -609,8 +619,10 @@ async def export_student_transcript(
     doc.build(elements)
     output.seek(0)
 
+    from urllib.parse import quote
+    encoded_filename = quote(f"transcript_{student.student_number}.pdf")
     return StreamingResponse(
         output,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=transcript_{student.student_number}.pdf"}
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )

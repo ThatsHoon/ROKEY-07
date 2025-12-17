@@ -114,7 +114,7 @@ async def get_user(
     current_user: User = Depends(require_roles(["admin", "staff"]))
 ):
     """사용자 상세 조회"""
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == str(user_id)).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -131,7 +131,7 @@ async def update_user(
     current_user: User = Depends(require_roles(["admin"]))
 ):
     """사용자 수정"""
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == str(user_id)).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -167,7 +167,7 @@ async def delete_user(
     current_user: User = Depends(require_roles(["admin"]))
 ):
     """사용자 삭제 (비활성화)"""
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == str(user_id)).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
