@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: grade_db
+    environment:
+      POSTGRES_DB: grade_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d grade_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - grade_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: grade_backend
+    environment:
+      DATABASE_URL: postgresql://admin:password@postgres:5432/grade_db
+      JWT_SECRET_KEY: your-super-secret-key-change-in-production-min-32-chars
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+      CORS_ORIGINS: '["http://localhost:3000", "http://localhost:5173"]'
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - grade_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: grade_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - grade_network
+
+volumes:
+  postgres_data:
+
+networks:
+  grade_network:
+    driver: bridge
