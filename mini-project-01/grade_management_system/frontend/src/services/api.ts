@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
 
-const API_BASE_URL = '/api/v1'
+// Use environment variable for API URL, fallback to relative path for development proxy
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1'
 
 // 임시 토큰 저장 (로그인 직후 getCurrentUser 호출 전)
 let tempAuthToken: string | null = null
