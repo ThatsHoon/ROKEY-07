@@ -2,6 +2,14 @@
 
 학생들의 출결 및 성적을 효율적으로 관리하는 웹 기반 시스템입니다.
 
+## 배포 URL
+
+- **Frontend**: https://grade-management-frontend.onrender.com
+- **Backend API**: https://grade-management-api-q3q6.onrender.com
+- **API 문서**: https://grade-management-api-q3q6.onrender.com/docs
+
+> 참고: Render 무료 플랜은 15분 비활성 후 서비스가 슬립 상태로 전환됩니다. 첫 접속 시 1-2분 정도 로딩 시간이 필요합니다.
+
 ## 주요 기능
 
 - **사용자 관리**: Admin, Teacher, Staff, Student 역할 기반 인증
@@ -14,39 +22,29 @@
 
 ### Backend
 - FastAPI 0.104.1
-- PostgreSQL 15
+- SQLite (개발/배포) / PostgreSQL (프로덕션 옵션)
 - SQLAlchemy 2.0
 - JWT + RBAC 인증
+- Pydantic v2
 
 ### Frontend
 - React 18 + TypeScript
 - Vite
 - TailwindCSS
-- React Query
+- React Query (TanStack Query)
+- Zustand (상태관리)
+
+### 배포
+- Render (Backend: Web Service, Frontend: Static Site)
 
 ## 시작하기
 
 ### 사전 요구사항
 - Python 3.11+
 - Node.js 20+
-- PostgreSQL 15+
-- Docker & Docker Compose (선택)
+- Git
 
-### Docker로 실행 (권장)
-
-```bash
-# 프로젝트 디렉토리로 이동
-cd grade_management_system
-
-# Docker Compose로 실행
-docker-compose up -d
-
-# 브라우저에서 접속
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:8000/docs
-```
-
-### 개별 실행
+### 로컬 실행
 
 #### Backend
 ```bash
@@ -59,13 +57,6 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 # 의존성 설치
 pip install -r requirements.txt
 
-# 환경변수 설정
-cp .env.example .env
-# .env 파일 수정
-
-# 데이터베이스 마이그레이션
-alembic upgrade head
-
 # 서버 실행
 uvicorn app.main:app --reload --port 8000
 ```
@@ -77,9 +68,21 @@ cd frontend
 # 의존성 설치
 npm install
 
+# 환경변수 설정 (로컬 개발용)
+# .env 파일 생성
+echo "VITE_API_URL=http://localhost:8000/api/v1" > .env
+
 # 개발 서버 실행
 npm run dev
 ```
+
+### Render 배포
+
+프로젝트에 `render.yaml` Blueprint 파일이 포함되어 있습니다.
+
+1. Render Dashboard에서 "New +" → "Blueprint" 선택
+2. GitHub 저장소 연결
+3. 자동으로 Backend와 Frontend 서비스 생성
 
 ## 기본 계정
 
@@ -90,8 +93,9 @@ npm run dev
 ## API 문서
 
 서버 실행 후 다음 URL에서 API 문서를 확인할 수 있습니다:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+- Swagger UI: http://localhost:8000/docs (로컬)
+- ReDoc: http://localhost:8000/redoc (로컬)
+- 배포: https://grade-management-api-q3q6.onrender.com/docs
 
 ## 프로젝트 구조
 
@@ -102,21 +106,33 @@ grade_management_system/
 │   │   ├── models/      # SQLAlchemy 모델
 │   │   ├── schemas/     # Pydantic 스키마
 │   │   ├── routers/     # API 라우터
-│   │   ├── services/    # 비즈니스 로직
-│   │   ├── utils/       # 유틸리티
-│   │   └── middleware/  # 미들웨어
-│   ├── alembic/         # DB 마이그레이션
-│   └── tests/           # 테스트
+│   │   └── utils/       # 유틸리티 (인증, 보안)
+│   ├── requirements.txt
+│   └── .env.example
 ├── frontend/
 │   ├── src/
 │   │   ├── components/  # React 컴포넌트
 │   │   ├── pages/       # 페이지
 │   │   ├── services/    # API 서비스
-│   │   ├── store/       # 상태 관리
+│   │   ├── store/       # Zustand 상태 관리
 │   │   └── types/       # TypeScript 타입
-│   └── public/
-└── docker-compose.yml
+│   ├── package.json
+│   └── vite.config.ts
+├── dev_md/              # 개발 문서
+├── render.yaml          # Render 배포 설정
+└── README.md
 ```
+
+## 개발 현황
+
+- [x] Backend API 구현 완료
+- [x] Frontend UI 구현 완료
+- [x] 사용자 인증/권한 시스템
+- [x] 학생/과정/반 관리
+- [x] 출결 관리 시스템
+- [x] 성적 처리 시스템
+- [x] PDF/Excel 리포트 출력
+- [x] Render 배포 완료
 
 ## 라이선스
 
