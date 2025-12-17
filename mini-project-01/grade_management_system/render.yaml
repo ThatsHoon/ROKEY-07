@@ -17,7 +17,7 @@ services:
       - key: DATABASE_URL
         value: sqlite:///./grade_management.db
       - key: CORS_ORIGINS
-        value: "*"
+        value: "https://grade-management-frontend.onrender.com,http://localhost:5173"
     healthCheckPath: /api/v1/health
 
   # Frontend Static Site
@@ -30,6 +30,9 @@ services:
     rootDir: mini-project-01/grade_management_system/frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://grade-management-api.onrender.com/api/v1
     headers:
       - path: /*
         name: Cache-Control
