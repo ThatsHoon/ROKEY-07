@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { attendanceApi, coursesApi } from '../services/api'
-import type { Attendance as AttendanceType, Class } from '../types'
+import type { Attendance as AttendanceType } from '../types'
 import { Calendar, Filter, Check, Clock, X as XIcon, AlertCircle } from 'lucide-react'
 
 const statusConfig = {

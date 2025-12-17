@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { studentsApi, coursesApi, attendanceApi } from '../services/api'
+import { studentsApi, coursesApi } from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import {
   Users,
@@ -7,7 +7,6 @@ import {
   Calendar,
   TrendingUp,
   UserCheck,
-  UserX,
 } from 'lucide-react'
 
 export default function Dashboard() {

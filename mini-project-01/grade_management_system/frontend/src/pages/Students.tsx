@@ -8,7 +8,7 @@ export default function Students() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null)
+  const [_editingStudent, setEditingStudent] = useState<Student | null>(null)
 
   const { data: students, isLoading } = useQuery({
     queryKey: ['students', search],
