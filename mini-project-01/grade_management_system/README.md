@@ -4,7 +4,8 @@
 
 ## 배포 URL
 
-- **Frontend**: https://grade-management-frontend.onrender.com
+- **Render 서버 실행(1-2분 후 Frontend 클릭▽)**: https://grade-management-frontend.onrender.com
+- **Frontend**: https://grade-management-frontend-bkoh.onrender.com
 - **Backend API**: https://grade-management-api-q3q6.onrender.com
 - **API 문서**: https://grade-management-api-q3q6.onrender.com/docs
 
