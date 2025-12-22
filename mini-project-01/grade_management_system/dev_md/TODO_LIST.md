@@ -16,7 +16,7 @@
 
 ## 배포 정보
 
-- **Frontend**: https://grade-management-frontend.onrender.com
+- **Frontend**: https://grade-management-frontend-bkoh.onrender.com
 - **Backend API**: https://grade-management-api-q3q6.onrender.com
 - **API 문서**: https://grade-management-api-q3q6.onrender.com/docs
 
@@ -47,6 +47,43 @@
 - [ ] CI/CD 파이프라인 구축
 
 ## 개발 일지
+
+### 2025-12-22
+**버그 수정 및 배포 테스트 완료**
+
+#### 버그 수정
+
+1. **프론트엔드 - 반 생성 시 schedule 필드 오류** (`Courses.tsx:96-106`)
+   - 문제: `schedule` 필드를 문자열로 전송하여 백엔드 422 오류 발생
+   - 원인: 백엔드 스키마가 `Dict[str, Any]` 타입을 기대
+   - 해결: JSON 객체 `{ description: "..." }` 또는 `null`로 전송하도록 수정
+
+2. **백엔드 - SQLite dict 저장 불가 오류** (`courses.py`)
+   - 문제: SQLite가 Python dict 타입을 직접 저장할 수 없어 500 오류 발생
+   - 원인: `schedule` 필드를 직렬화 없이 저장 시도
+   - 해결: `json.dumps()`로 저장, `json.loads()`로 조회 시 역직렬화
+
+#### 배포 테스트 결과
+
+| 기능 | 상태 |
+|------|------|
+| 과정 등록/조회 | ✅ 정상 |
+| 반 생성 (일정 포함) | ✅ 정상 |
+| 학생 등록 | ✅ 정상 |
+| 학생 수강 배정 | ✅ 정상 |
+| 출결 관리 UI | ✅ 정상 |
+| 성적 관리/평가항목 추가 | ✅ 정상 |
+| 리포트 페이지 | ✅ 정상 |
+
+#### 커밋 내역
+- `1101e93` - fix: Class creation schedule field - send as JSON object
+- `56882b0` - fix: Backend Class schedule JSON serialization for SQLite
+
+#### 참고사항
+- Render Free Tier는 SQLite를 사용하여 배포 시마다 데이터가 초기화됨
+- 영구 데이터 저장이 필요하면 PostgreSQL 등 외부 DB 연동 필요
+
+---
 
 ### 2024-12-22
 **프론트엔드 미구현 기능 전체 구현 완료**
