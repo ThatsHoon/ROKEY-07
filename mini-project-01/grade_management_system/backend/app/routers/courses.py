@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from uuid import UUID
+import json
 
 from app.database import get_db
 from app.models.user import User
@@ -187,7 +188,7 @@ async def get_classes(
             course_id=cls.course_id,
             name=cls.name,
             capacity=cls.capacity,
-            schedule=cls.schedule,
+            schedule=json.loads(cls.schedule) if cls.schedule else None,
             student_count=student_count,
             created_at=cls.created_at,
             updated_at=cls.updated_at
@@ -216,7 +217,7 @@ async def create_class(
         course_id=str(course_id),
         name=class_data.name,
         capacity=class_data.capacity,
-        schedule=class_data.schedule
+        schedule=json.dumps(class_data.schedule) if class_data.schedule else None
     )
     db.add(db_class)
     db.commit()
@@ -227,7 +228,7 @@ async def create_class(
         course_id=db_class.course_id,
         name=db_class.name,
         capacity=db_class.capacity,
-        schedule=db_class.schedule,
+        schedule=json.loads(db_class.schedule) if db_class.schedule else None,
         student_count=0,
         created_at=db_class.created_at,
         updated_at=db_class.updated_at
@@ -259,7 +260,7 @@ async def get_class(
         course_name=cls.course.name if cls.course else None,
         name=cls.name,
         capacity=cls.capacity,
-        schedule=cls.schedule,
+        schedule=json.loads(cls.schedule) if cls.schedule else None,
         student_count=student_count,
         created_at=cls.created_at,
         updated_at=cls.updated_at
@@ -283,11 +284,28 @@ async def update_class(
 
     update_data = class_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
+        if field == 'schedule' and value is not None:
+            value = json.dumps(value)
         setattr(cls, field, value)
 
     db.commit()
     db.refresh(cls)
-    return cls
+
+    student_count = db.query(Enrollment).filter(
+        Enrollment.class_id == str(class_id),
+        Enrollment.dropped_at.is_(None)
+    ).count()
+
+    return ClassResponse(
+        id=cls.id,
+        course_id=cls.course_id,
+        name=cls.name,
+        capacity=cls.capacity,
+        schedule=json.loads(cls.schedule) if cls.schedule else None,
+        student_count=student_count,
+        created_at=cls.created_at,
+        updated_at=cls.updated_at
+    )
 
 
 @router.delete("/classes/{class_id}", status_code=status.HTTP_204_NO_CONTENT)
