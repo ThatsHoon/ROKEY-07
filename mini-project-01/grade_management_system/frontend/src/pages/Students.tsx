@@ -1,18 +1,34 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { studentsApi } from '../services/api'
-import type { Student } from '../types'
-import { Plus, Search, Edit, Trash2, X } from 'lucide-react'
+import { studentsApi, coursesApi } from '../services/api'
+import type { Student, Course, Class, StudentStatus } from '../types'
+import { Plus, Search, Edit, Trash2, X, UserPlus, BookOpen } from 'lucide-react'
+
+const STATUS_OPTIONS: StudentStatus[] = ['재학', '휴학', '수료', '중퇴']
 
 export default function Students() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
-  const [_editingStudent, setEditingStudent] = useState<Student | null>(null)
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null)
+  const [enrollingStudent, setEnrollingStudent] = useState<Student | null>(null)
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
 
   const { data: students, isLoading } = useQuery({
     queryKey: ['students', search],
     queryFn: () => studentsApi.getAll({ search }),
+  })
+
+  const { data: courses } = useQuery({
+    queryKey: ['courses'],
+    queryFn: () => coursesApi.getAll(),
+    enabled: !!enrollingStudent,
+  })
+
+  const { data: classes } = useQuery({
+    queryKey: ['classes', selectedCourse?.id],
+    queryFn: () => coursesApi.getClasses(selectedCourse!.id),
+    enabled: !!selectedCourse,
   })
 
   const createMutation = useMutation({
@@ -23,10 +39,29 @@ export default function Students() {
     },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      studentsApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] })
+      setEditingStudent(null)
+    },
+  })
+
   const deleteMutation = useMutation({
     mutationFn: studentsApi.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] })
+    },
+  })
+
+  const enrollMutation = useMutation({
+    mutationFn: ({ studentId, classId }: { studentId: string; classId: string }) =>
+      studentsApi.enroll(studentId, classId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] })
+      setEnrollingStudent(null)
+      setSelectedCourse(null)
     },
   })
 
@@ -41,6 +76,22 @@ export default function Students() {
       password: formData.get('password') || 'default123',
     }
     createMutation.mutate(data)
+  }
+
+  const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!editingStudent) return
+    const formData = new FormData(e.currentTarget)
+    const data = {
+      student_number: formData.get('student_number'),
+      status: formData.get('status'),
+    }
+    updateMutation.mutate({ id: editingStudent.id, data })
+  }
+
+  const handleEnroll = (classId: string) => {
+    if (!enrollingStudent) return
+    enrollMutation.mutate({ studentId: enrollingStudent.id, classId })
   }
 
   return (
@@ -123,8 +174,16 @@ export default function Students() {
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
+                        onClick={() => setEnrollingStudent(student)}
+                        className="p-2 hover:bg-blue-500/20 text-blue-400 rounded-lg transition-colors"
+                        title="수강 배정"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => setEditingStudent(student)}
                         className="p-2 hover:bg-background rounded-lg transition-colors"
+                        title="정보 수정"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
@@ -135,6 +194,7 @@ export default function Students() {
                           }
                         }}
                         className="p-2 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
+                        title="삭제"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -211,6 +271,158 @@ export default function Students() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-surface rounded-xl border border-border w-full max-w-md mx-4">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h2 className="text-lg font-semibold">학생 정보 수정</h2>
+              <button onClick={() => setEditingStudent(null)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit} className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">이름</label>
+                <input
+                  value={editingStudent.user_name || ''}
+                  disabled
+                  className="w-full px-4 py-2 bg-background/50 border border-border rounded-lg text-gray-400"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">학번 *</label>
+                <input
+                  name="student_number"
+                  defaultValue={editingStudent.student_number}
+                  required
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">상태 *</label>
+                <select
+                  name="status"
+                  defaultValue={editingStudent.status}
+                  required
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                >
+                  {STATUS_OPTIONS.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditingStudent(null)}
+                  className="flex-1 py-2 bg-background border border-border rounded-lg hover:bg-border transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateMutation.isPending}
+                  className="flex-1 py-2 bg-primary hover:bg-primary-500 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {updateMutation.isPending ? '저장 중...' : '저장'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Enrollment Modal */}
+      {enrollingStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-surface rounded-xl border border-border w-full max-w-lg mx-4">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div>
+                <h2 className="text-lg font-semibold">수강 배정</h2>
+                <p className="text-sm text-gray-400">
+                  {enrollingStudent.user_name} ({enrollingStudent.student_number})
+                </p>
+              </div>
+              <button onClick={() => { setEnrollingStudent(null); setSelectedCourse(null); }}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              {/* Course Selection */}
+              <div>
+                <label className="block text-sm font-medium mb-2">과정 선택</label>
+                <select
+                  value={selectedCourse?.id || ''}
+                  onChange={(e) => {
+                    const course = courses?.find((c: Course) => c.id === e.target.value)
+                    setSelectedCourse(course || null)
+                  }}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                >
+                  <option value="">과정을 선택하세요</option>
+                  {courses?.map((course: Course) => (
+                    <option key={course.id} value={course.id}>
+                      [{course.code}] {course.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Class List */}
+              {selectedCourse && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">반 선택</label>
+                  {!classes || classes.length === 0 ? (
+                    <p className="text-gray-400 text-sm py-4 text-center">
+                      해당 과정에 등록된 반이 없습니다.
+                    </p>
+                  ) : (
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {classes.map((cls: Class) => (
+                        <div
+                          key={cls.id}
+                          className="flex items-center justify-between p-3 bg-background rounded-lg border border-border"
+                        >
+                          <div className="flex items-center gap-3">
+                            <BookOpen className="w-5 h-5 text-primary" />
+                            <div>
+                              <p className="font-medium">{cls.name}</p>
+                              <p className="text-xs text-gray-400">
+                                정원: {cls.student_count}/{cls.capacity}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleEnroll(cls.id)}
+                            disabled={enrollMutation.isPending || cls.student_count >= cls.capacity}
+                            className="px-3 py-1 bg-primary hover:bg-primary-500 rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {enrollMutation.isPending ? '배정 중...' : '배정'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="pt-4 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => { setEnrollingStudent(null); setSelectedCourse(null); }}
+                  className="w-full py-2 bg-background border border-border rounded-lg hover:bg-border transition-colors"
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
