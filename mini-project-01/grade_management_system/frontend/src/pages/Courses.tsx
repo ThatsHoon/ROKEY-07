@@ -8,7 +8,7 @@ interface ClassData {
   id: string
   name: string
   capacity: number
-  schedule: string
+  schedule: { description?: string } | null
   student_count?: number
 }
 
@@ -97,10 +97,11 @@ export default function Courses() {
     e.preventDefault()
     if (!selectedCourse) return
     const formData = new FormData(e.currentTarget)
+    const scheduleStr = formData.get('schedule') as string
     const data = {
       name: formData.get('name'),
       capacity: parseInt(formData.get('capacity') as string) || 30,
-      schedule: formData.get('schedule'),
+      schedule: scheduleStr ? { description: scheduleStr } : null,
     }
     createClassMutation.mutate({ courseId: selectedCourse.id, data })
   }
@@ -460,7 +461,7 @@ export default function Courses() {
                         <div>
                           <h4 className="font-medium">{cls.name}</h4>
                           <p className="text-sm text-gray-400">
-                            정원: {cls.capacity}명 | {cls.schedule || '일정 미정'}
+                            정원: {cls.capacity}명 | {cls.schedule?.description || '일정 미정'}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
