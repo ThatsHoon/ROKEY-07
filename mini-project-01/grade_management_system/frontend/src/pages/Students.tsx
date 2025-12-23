@@ -60,8 +60,14 @@ export default function Students() {
       studentsApi.enroll(studentId, classId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] })
+      queryClient.invalidateQueries({ queryKey: ['classes'] })
+      alert('수강 배정이 완료되었습니다.')
       setEnrollingStudent(null)
       setSelectedCourse(null)
+    },
+    onError: (error: Error & { response?: { data?: { detail?: string } } }) => {
+      const message = error.response?.data?.detail || '수강 배정에 실패했습니다.'
+      alert(message)
     },
   })
 
