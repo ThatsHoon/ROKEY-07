@@ -131,7 +131,7 @@ async def update_course(
     if "code" in update_data:
         existing = db.query(Course).filter(
             Course.code == update_data["code"],
-            Course.id != course_id
+            Course.id != str(course_id)
         ).first()
         if existing:
             raise HTTPException(

@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_snapshot",
+      "mcp__render__list_services",
+      "mcp__render__list_workspaces",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_fill_form",
+      "mcp__playwright__browser_handle_dialog",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_network_requests",
+      "Bash(git add:*)",
+      "Bash(git restore:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: 학생 삭제 시 실제 DB에서 삭제하도록 수정\n\n기존: 상태만 DROPPED로 변경 \\(소프트 삭제\\)\n변경: 관련 데이터\\(성적, 출결, 수강\\)와 함께 실제 삭제\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "mcp__render__list_deploys",
+      "mcp__render__get_deploy",
+      "mcp__render__list_logs",
+      "Bash(curl:*)",
+      "mcp__playwright__browser_evaluate",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: 과정 수정 시 코드 중복 체크 버그 수정\n\nCourse.id와 course_id 타입 불일치로 인해\n자기 자신과 비교 시에도 중복으로 판단되는 버그 수정\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+    ]
+  }
+}
