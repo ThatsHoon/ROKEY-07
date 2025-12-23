@@ -210,7 +210,7 @@ async def delete_student(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(["admin"]))
 ):
-    """학생 삭제 (상태 변경)"""
+    """학생 삭제 (실제 삭제)"""
     student = db.query(Student).filter(Student.id == str(student_id)).first()
     if not student:
         raise HTTPException(
@@ -218,9 +218,25 @@ async def delete_student(
             detail="학생을 찾을 수 없습니다"
         )
 
-    student.status = StudentStatus.DROPPED
-    if student.user:
-        student.user.is_active = False
+    # 관련 데이터 삭제 (수강, 출결, 성적)
+    from app.models.course import Enrollment
+    from app.models.attendance import Attendance
+    from app.models.grade import Grade
+
+    db.query(Grade).filter(Grade.student_id == str(student_id)).delete()
+    db.query(Attendance).filter(Attendance.student_id == str(student_id)).delete()
+    db.query(Enrollment).filter(Enrollment.student_id == str(student_id)).delete()
+
+    # 연결된 사용자 정보 저장
+    user = student.user
+
+    # 학생 삭제
+    db.delete(student)
+
+    # 연결된 사용자도 삭제
+    if user:
+        db.delete(user)
+
     db.commit()
 
 
