@@ -148,6 +148,10 @@ export const coursesApi = {
     const response = await api.post(`/courses/${courseId}/classes`, data)
     return response.data
   },
+  getClassStudents: async (classId: string) => {
+    const response = await api.get(`/courses/classes/${classId}/students`)
+    return response.data
+  },
 }
 
 // Attendance API

@@ -47,6 +47,12 @@ export default function Attendance() {
     enabled: !!selectedClass,
   })
 
+  const { data: classStudents } = useQuery({
+    queryKey: ['classStudents', selectedClass],
+    queryFn: () => coursesApi.getClassStudents(selectedClass),
+    enabled: !!selectedClass && showInputForm,
+  })
+
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
       attendanceApi.update(id, data),
@@ -310,15 +316,15 @@ export default function Attendance() {
                   각 학생의 출결 상태를 선택하세요. (현재 반에 등록된 학생 기준)
                 </p>
                 <div className="space-y-2">
-                  {attendance && attendance.length > 0 ? (
-                    Array.from(new Map<string, AttendanceType>(attendance.map((a: AttendanceType) => [a.student_id, a])).values()).map((record) => (
-                      <div key={record.student_id} className="flex items-center justify-between p-3 bg-background rounded-lg">
+                  {classStudents && classStudents.length > 0 ? (
+                    classStudents.map((enrollment: { student_id: string; student_name: string; student_number: string }) => (
+                      <div key={enrollment.student_id} className="flex items-center justify-between p-3 bg-background rounded-lg">
                         <div>
-                          <p className="font-medium">{record.student_name}</p>
-                          <p className="text-xs text-gray-400">{record.student_number}</p>
+                          <p className="font-medium">{enrollment.student_name}</p>
+                          <p className="text-xs text-gray-400">{enrollment.student_number}</p>
                         </div>
                         <select
-                          name={`status_${record.student_id}`}
+                          name={`status_${enrollment.student_id}`}
                           defaultValue="출석"
                           className="px-3 py-2 bg-surface border border-border rounded-lg text-sm"
                         >
@@ -330,7 +336,7 @@ export default function Attendance() {
                     ))
                   ) : (
                     <p className="text-center text-gray-400 py-8">
-                      해당 반에 등록된 학생이 없거나 출결 기록이 없습니다.
+                      해당 반에 등록된 학생이 없습니다.
                     </p>
                   )}
                 </div>
