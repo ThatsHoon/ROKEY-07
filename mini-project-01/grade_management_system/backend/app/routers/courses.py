@@ -213,6 +213,17 @@ async def create_class(
             detail="과정을 찾을 수 없습니다"
         )
 
+    # Check for duplicate class name within the same course
+    existing_class = db.query(Class).filter(
+        Class.course_id == str(course_id),
+        Class.name == class_data.name
+    ).first()
+    if existing_class:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="같은 과정 내에 동일한 이름의 반이 이미 존재합니다"
+        )
+
     db_class = Class(
         course_id=str(course_id),
         name=class_data.name,

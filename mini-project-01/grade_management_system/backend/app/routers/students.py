@@ -6,7 +6,7 @@ from uuid import UUID
 from app.database import get_db
 from app.models.user import User, Role
 from app.models.student import Student, StudentStatus
-from app.models.course import Enrollment
+from app.models.course import Enrollment, Class
 from app.schemas.student import StudentCreate, StudentUpdate, StudentResponse
 from app.schemas.course import EnrollmentCreate, EnrollmentResponse
 from app.utils.security import get_password_hash, get_current_active_user, require_roles
@@ -257,7 +257,7 @@ async def enroll_student(
             detail="학생을 찾을 수 없습니다"
         )
 
-    # Check if already enrolled
+    # Check if already enrolled in the same class
     existing = db.query(Enrollment).filter(
         Enrollment.student_id == str(student_id),
         Enrollment.class_id == str(enrollment.class_id),
@@ -267,6 +267,29 @@ async def enroll_student(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="이미 등록된 수강 신청입니다"
+        )
+
+    # Check if already enrolled in another class of the same course
+    target_class = db.query(Class).filter(Class.id == str(enrollment.class_id)).first()
+    if not target_class:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="반을 찾을 수 없습니다"
+        )
+
+    # Find all classes in the same course and check enrollment
+    same_course_classes = db.query(Class).filter(Class.course_id == target_class.course_id).all()
+    same_course_class_ids = [cls.id for cls in same_course_classes]
+
+    existing_in_course = db.query(Enrollment).filter(
+        Enrollment.student_id == str(student_id),
+        Enrollment.class_id.in_(same_course_class_ids),
+        Enrollment.dropped_at.is_(None)
+    ).first()
+    if existing_in_course:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="이미 해당 과정의 다른 반에 등록되어 있습니다"
         )
 
     db_enrollment = Enrollment(

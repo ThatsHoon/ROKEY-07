@@ -62,6 +62,17 @@ export default function Courses() {
       queryClient.invalidateQueries({ queryKey: ['classes', selectedCourse?.id] })
       setShowClassModal(false)
     },
+    onError: (error: Error & { response?: { data?: { detail?: string } } }) => {
+      const message = error.response?.data?.detail || '반 추가에 실패했습니다.'
+      alert(message)
+    },
+  })
+
+  const deleteClassMutation = useMutation({
+    mutationFn: coursesApi.deleteClass,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['classes', selectedCourse?.id] })
+    },
   })
 
   const handleCreateSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -464,10 +475,21 @@ export default function Courses() {
                             정원: {cls.capacity}명 | {cls.schedule?.description || '일정 미정'}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                           <span className="text-sm text-gray-400">
                             {cls.student_count || 0}명 등록
                           </span>
+                          <button
+                            onClick={() => {
+                              if (confirm(`"${cls.name}" 반을 삭제하시겠습니까?\n등록된 학생 정보도 함께 삭제됩니다.`)) {
+                                deleteClassMutation.mutate(cls.id)
+                              }
+                            }}
+                            className="p-1.5 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
+                            title="반 삭제"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     ))}

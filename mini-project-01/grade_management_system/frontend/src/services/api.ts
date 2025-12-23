@@ -152,6 +152,9 @@ export const coursesApi = {
     const response = await api.get(`/courses/classes/${classId}/students`)
     return response.data
   },
+  deleteClass: async (classId: string) => {
+    await api.delete(`/courses/classes/${classId}`)
+  },
 }
 
 // Attendance API

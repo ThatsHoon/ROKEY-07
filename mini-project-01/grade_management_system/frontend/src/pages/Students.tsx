@@ -136,7 +136,7 @@ export default function Students() {
         <table className="w-full">
           <thead className="bg-background">
             <tr>
-              <th className="px-6 py-4 text-left text-sm font-semibold">학번</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold">학번 (고유ID)</th>
               <th className="px-6 py-4 text-left text-sm font-semibold">이름</th>
               <th className="px-6 py-4 text-left text-sm font-semibold">이메일</th>
               <th className="px-6 py-4 text-left text-sm font-semibold">연락처</th>
@@ -160,7 +160,11 @@ export default function Students() {
             ) : (
               students?.map((student: Student) => (
                 <tr key={student.id} className="hover:bg-background/50">
-                  <td className="px-6 py-4 font-mono">{student.student_number}</td>
+                  <td className="px-6 py-4">
+                    <span className="px-2 py-1 bg-primary/20 text-primary rounded font-mono text-sm">
+                      {student.student_number}
+                    </span>
+                  </td>
                   <td className="px-6 py-4">{student.user_name || '-'}</td>
                   <td className="px-6 py-4 text-gray-400">{student.user_email || '-'}</td>
                   <td className="px-6 py-4 text-gray-400">{student.user_phone || '-'}</td>
