@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { gradesApi, coursesApi } from '../services/api'
 import type { Grade, Evaluation, EvaluationType, Course, Class } from '../types'
-import { Filter, Plus, TrendingUp, Edit, X, Save } from 'lucide-react'
+import { Filter, Plus, TrendingUp, Edit, X, Save, Trash2 } from 'lucide-react'
 
 const EVALUATION_TYPES: EvaluationType[] = ['중간고사', '기말고사', '퀴즈', '과제', '프로젝트', '출결', '실기']
 
@@ -13,6 +13,7 @@ export default function Grades() {
   const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | null>(null)
   const [showGradeModal, setShowGradeModal] = useState(false)
   const [editingGrade, setEditingGrade] = useState<Grade | null>(null)
+  const [editingEvaluation, setEditingEvaluation] = useState<Evaluation | null>(null)
 
   const { data: courses } = useQuery({
     queryKey: ['courses'],
@@ -60,6 +61,23 @@ export default function Grades() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['evaluations'] })
       setShowEvalModal(false)
+    },
+  })
+
+  const updateEvalMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      gradesApi.updateEvaluation(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['evaluations'] })
+      setEditingEvaluation(null)
+    },
+  })
+
+  const deleteEvalMutation = useMutation({
+    mutationFn: gradesApi.deleteEvaluation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['evaluations'] })
+      queryClient.invalidateQueries({ queryKey: ['grades'] })
     },
   })
 
@@ -126,6 +144,27 @@ export default function Grades() {
     updateGradeMutation.mutate({ id: editingGrade.id, data })
   }
 
+  const handleEvalEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!editingEvaluation) return
+    const formData = new FormData(e.currentTarget)
+    const data = {
+      name: formData.get('name'),
+      type: formData.get('type') as EvaluationType,
+      description: formData.get('description') || null,
+      weight: parseInt(formData.get('weight') as string) || 0,
+      max_score: parseInt(formData.get('max_score') as string) || 100,
+      due_date: formData.get('due_date') || null,
+    }
+    updateEvalMutation.mutate({ id: editingEvaluation.id, data })
+  }
+
+  const handleEvalDelete = (evaluation: Evaluation) => {
+    if (confirm(`"${evaluation.name}" 평가항목을 삭제하시겠습니까?\n관련된 모든 성적도 함께 삭제됩니다.`)) {
+      deleteEvalMutation.mutate(evaluation.id)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -178,11 +217,7 @@ export default function Grades() {
             {evaluations?.map((evaluation: Evaluation) => (
               <div
                 key={evaluation.id}
-                className="bg-surface rounded-xl border border-border p-6 hover:border-primary/50 transition-colors cursor-pointer"
-                onClick={() => {
-                  setSelectedEvaluation(evaluation)
-                  setShowGradeModal(true)
-                }}
+                className="bg-surface rounded-xl border border-border p-6 hover:border-primary/50 transition-colors"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -193,11 +228,35 @@ export default function Grades() {
                       {evaluation.name}
                     </h3>
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-primary">
-                      {evaluation.weight}%
-                    </p>
-                    <p className="text-xs text-gray-400">가중치</p>
+                  <div className="flex items-start gap-2">
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-primary">
+                        {evaluation.weight}%
+                      </p>
+                      <p className="text-xs text-gray-400">가중치</p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setEditingEvaluation(evaluation)
+                        }}
+                        className="p-1.5 hover:bg-background rounded-lg transition-colors"
+                        title="수정"
+                      >
+                        <Edit className="w-4 h-4 text-gray-400 hover:text-primary" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEvalDelete(evaluation)
+                        }}
+                        className="p-1.5 hover:bg-background rounded-lg transition-colors"
+                        title="삭제"
+                      >
+                        <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-400" />
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-sm">
@@ -214,7 +273,15 @@ export default function Grades() {
                     마감: {evaluation.due_date}
                   </p>
                 )}
-                <p className="mt-2 text-xs text-primary">클릭하여 성적 입력</p>
+                <button
+                  onClick={() => {
+                    setSelectedEvaluation(evaluation)
+                    setShowGradeModal(true)
+                  }}
+                  className="mt-3 w-full py-2 text-xs text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                >
+                  클릭하여 성적 입력
+                </button>
               </div>
             ))}
             {evaluations?.length === 0 && (
@@ -563,6 +630,103 @@ export default function Grades() {
                   className="flex-1 py-2 bg-primary hover:bg-primary-500 rounded-lg transition-colors disabled:opacity-50"
                 >
                   {updateGradeMutation.isPending ? '저장 중...' : '저장'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Evaluation Modal */}
+      {editingEvaluation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-surface rounded-xl border border-border w-full max-w-md mx-4">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h2 className="text-lg font-semibold">평가 항목 수정</h2>
+              <button onClick={() => setEditingEvaluation(null)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleEvalEditSubmit} className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">평가명 *</label>
+                <input
+                  name="name"
+                  required
+                  defaultValue={editingEvaluation.name}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">유형 *</label>
+                <select
+                  name="type"
+                  required
+                  defaultValue={editingEvaluation.type}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                >
+                  {EVALUATION_TYPES.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">가중치 (%) *</label>
+                  <input
+                    name="weight"
+                    type="number"
+                    min="0"
+                    max="100"
+                    required
+                    defaultValue={editingEvaluation.weight}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">만점 *</label>
+                  <input
+                    name="max_score"
+                    type="number"
+                    min="1"
+                    required
+                    defaultValue={editingEvaluation.max_score}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">마감일</label>
+                <input
+                  name="due_date"
+                  type="date"
+                  defaultValue={editingEvaluation.due_date || ''}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">설명</label>
+                <textarea
+                  name="description"
+                  rows={2}
+                  defaultValue={editingEvaluation.description || ''}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg resize-none"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditingEvaluation(null)}
+                  className="flex-1 py-2 bg-background border border-border rounded-lg hover:bg-border transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateEvalMutation.isPending}
+                  className="flex-1 py-2 bg-primary hover:bg-primary-500 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {updateEvalMutation.isPending ? '저장 중...' : '저장'}
                 </button>
               </div>
             </form>

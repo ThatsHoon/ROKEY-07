@@ -206,6 +206,13 @@ export const gradesApi = {
     const response = await api.post('/grades/evaluations', data)
     return response.data
   },
+  updateEvaluation: async (id: string, data: Record<string, unknown>) => {
+    const response = await api.put(`/grades/evaluations/${id}`, data)
+    return response.data
+  },
+  deleteEvaluation: async (id: string) => {
+    await api.delete(`/grades/evaluations/${id}`)
+  },
   getStudentSummary: async (studentId: string, courseId: string) => {
     const response = await api.get(`/grades/student/${studentId}/summary`, {
       params: { course_id: courseId },
