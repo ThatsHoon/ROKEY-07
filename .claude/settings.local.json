@@ -20,7 +20,10 @@
       "mcp__render__list_logs",
       "Bash(curl:*)",
       "mcp__playwright__browser_evaluate",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: 과정 수정 시 코드 중복 체크 버그 수정\n\nCourse.id와 course_id 타입 불일치로 인해\n자기 자신과 비교 시에도 중복으로 판단되는 버그 수정\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: 과정 수정 시 코드 중복 체크 버그 수정\n\nCourse.id와 course_id 타입 불일치로 인해\n자기 자신과 비교 시에도 중복으로 판단되는 버그 수정\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_select_option",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: 학생 수정 시 학번 중복 체크 버그 수정\n\nStudent.id와 student_id 타입 불일치로 인해\n자기 자신과 비교 시에도 중복으로 판단되는 버그 수정\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

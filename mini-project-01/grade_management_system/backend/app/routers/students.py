@@ -188,7 +188,7 @@ async def update_student(
     if "student_number" in update_data:
         existing = db.query(Student).filter(
             Student.student_number == update_data["student_number"],
-            Student.id != student_id
+            Student.id != str(student_id)
         ).first()
         if existing:
             raise HTTPException(
