@@ -32,7 +32,7 @@ class AttendanceUpdate(BaseModel):
     check_in_time: Optional[time] = None
     check_out_time: Optional[time] = None
     notes: Optional[str] = None
-    change_reason: str = Field(..., min_length=1)  # 변경 사유 필수
+    change_reason: Optional[str] = None  # 변경 사유 (선택)
 
 
 class AttendanceResponse(AttendanceBase):
