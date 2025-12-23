@@ -843,6 +843,40 @@ if existing_in_course:
 
 ---
 
+#### 12.6 CORS 설정 수정 (Render 배포 환경)
+**변경 내용:**
+- Render 백엔드 서비스의 환경변수 `CORS_ORIGINS` 업데이트
+
+**문제 상황:**
+- 프론트엔드(`grade-management-frontend-bkoh.onrender.com`)에서 백엔드 API 호출 시 CORS 오류 발생
+- 에러 메시지: "Access to XMLHttpRequest has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header"
+
+**해결 방법:**
+```bash
+# Render 환경변수 설정
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173,https://grade-management-frontend-bkoh.onrender.com,https://grade-management-frontend.onrender.com
+```
+
+**관련 코드 (backend/app/config.py):**
+```python
+class Settings(BaseSettings):
+    # CORS - can be "*" or comma-separated list
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Parse CORS_ORIGINS into a list"""
+        if self.CORS_ORIGINS == "*":
+            return ["*"]
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+```
+
+**주의사항:**
+- 새로운 프론트엔드 도메인 추가 시 환경변수에 해당 URL 추가 필요
+- 환경변수 변경 후 백엔드 서비스 재배포 필요
+
+---
+
 ### 테스트 결과 요약
 
 | 기능 | 테스트 결과 | 비고 |
@@ -853,6 +887,7 @@ if existing_in_course:
 | 반 삭제 | ✅ 성공 | 확인 대화상자 후 삭제 |
 | 학생 고유 키 표시 | ✅ 성공 | 배지 스타일 + 헤더 변경 |
 | 동일 과정 중복 수강 방지 | ✅ 성공 | A반 등록 후 B반 등록 시 오류 |
+| CORS 설정 | ✅ 성공 | 환경변수 업데이트 후 API 호출 정상 |
 
 ---
 
