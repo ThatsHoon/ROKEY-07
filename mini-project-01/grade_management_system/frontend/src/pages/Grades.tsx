@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { gradesApi, coursesApi } from '../services/api'
-import type { Grade, Evaluation, EvaluationType, Course } from '../types'
+import { gradesApi, coursesApi, studentsApi } from '../services/api'
+import type { Grade, Evaluation, EvaluationType, Course, Class } from '../types'
 import { Filter, Plus, TrendingUp, Edit, X, Save } from 'lucide-react'
 
 const EVALUATION_TYPES: EvaluationType[] = ['중간고사', '기말고사', '퀴즈', '과제', '프로젝트', '출결', '실기']
@@ -29,6 +29,30 @@ export default function Grades() {
     queryKey: ['grades', selectedCourse],
     queryFn: () => gradesApi.getAll({ course_id: selectedCourse }),
     enabled: !!selectedCourse,
+  })
+
+  const { data: classes } = useQuery({
+    queryKey: ['classes', selectedCourse],
+    queryFn: () => coursesApi.getClasses(selectedCourse),
+    enabled: !!selectedCourse && showGradeModal,
+  })
+
+  const { data: courseStudents } = useQuery({
+    queryKey: ['courseStudents', selectedCourse, classes],
+    queryFn: async () => {
+      if (!classes || classes.length === 0) return []
+      const allStudents: { student_id: string; student_name: string; student_number: string }[] = []
+      for (const cls of classes as Class[]) {
+        const students = await coursesApi.getClassStudents(cls.id)
+        for (const s of students) {
+          if (!allStudents.find(x => x.student_id === s.student_id)) {
+            allStudents.push(s)
+          }
+        }
+      }
+      return allStudents
+    },
+    enabled: !!classes && classes.length > 0 && showGradeModal,
   })
 
   const createEvalMutation = useMutation({
@@ -408,14 +432,22 @@ export default function Grades() {
             </div>
             <form onSubmit={handleGradeSubmit} className="p-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">학생 ID *</label>
-                <input
+                <label className="block text-sm font-medium mb-2">학생 선택 *</label>
+                <select
                   name="student_id"
                   required
                   className="w-full px-4 py-2 bg-background border border-border rounded-lg"
-                  placeholder="학생 ID 입력"
-                />
-                <p className="text-xs text-gray-400 mt-1">학생 관리 페이지에서 학생 ID를 확인하세요</p>
+                >
+                  <option value="">학생을 선택하세요</option>
+                  {courseStudents?.map((student: { student_id: string; student_name: string; student_number: string }) => (
+                    <option key={student.student_id} value={student.student_id}>
+                      {student.student_name} ({student.student_number})
+                    </option>
+                  ))}
+                </select>
+                {(!courseStudents || courseStudents.length === 0) && (
+                  <p className="text-xs text-gray-400 mt-1">해당 과정에 등록된 학생이 없습니다.</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">점수 * (0 ~ {selectedEvaluation.max_score})</label>
