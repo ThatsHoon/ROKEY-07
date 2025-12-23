@@ -685,7 +685,178 @@ VITE_API_URL=http://localhost:8000/api/v1
 
 ---
 
-## 12. 결론
+## 12. 개발 변경 이력
+
+### 2024-12-23 업데이트
+
+#### 12.1 평가항목 수정/삭제 기능 추가
+**변경 파일:**
+- `frontend/src/services/api.ts` - `updateEvaluation`, `deleteEvaluation` API 함수 추가
+- `frontend/src/pages/Grades.tsx` - 평가항목 카드에 수정/삭제 버튼 및 모달 추가
+
+**기능 설명:**
+- 평가항목 카드에 수정(연필 아이콘) 및 삭제(휴지통 아이콘) 버튼 추가
+- 수정 시 평가항목명, 가중치, 만점 수정 가능
+- 삭제 시 확인 대화상자 표시 후 삭제 처리
+
+```typescript
+// api.ts
+updateEvaluation: async (id: string, data: Record<string, unknown>) => {
+  const response = await api.put(`/grades/evaluations/${id}`, data)
+  return response.data
+},
+deleteEvaluation: async (id: string) => {
+  await api.delete(`/grades/evaluations/${id}`)
+},
+```
+
+---
+
+#### 12.2 반 이름 중복 체크 기능 추가
+**변경 파일:**
+- `backend/app/routers/courses.py` - `create_class` 엔드포인트에 중복 체크 로직 추가
+
+**기능 설명:**
+- 같은 과정 내에서 동일한 이름의 반 생성 시 HTTP 400 오류 반환
+- 오류 메시지: "같은 과정 내에 동일한 이름의 반이 이미 존재합니다"
+
+```python
+# courses.py - create_class 함수
+# Check for duplicate class name within the same course
+existing_class = db.query(Class).filter(
+    Class.course_id == str(course_id),
+    Class.name == class_data.name
+).first()
+if existing_class:
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="같은 과정 내에 동일한 이름의 반이 이미 존재합니다"
+    )
+```
+
+---
+
+#### 12.3 반 삭제 기능 추가
+**변경 파일:**
+- `frontend/src/services/api.ts` - `deleteClass` API 함수 추가
+- `frontend/src/pages/Courses.tsx` - 반 삭제 버튼 및 mutation 추가
+
+**기능 설명:**
+- 반 목록에서 각 반에 삭제 버튼(휴지통 아이콘) 추가
+- 삭제 시 확인 대화상자 표시: "OOO 반을 삭제하시겠습니까? 등록된 학생 정보도 함께 삭제됩니다."
+- 삭제 후 반 목록 자동 갱신
+
+```typescript
+// api.ts
+deleteClass: async (classId: string) => {
+  await api.delete(`/courses/classes/${classId}`)
+},
+
+// Courses.tsx
+const deleteClassMutation = useMutation({
+  mutationFn: coursesApi.deleteClass,
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['classes', selectedCourse?.id] })
+  },
+})
+```
+
+---
+
+#### 12.4 학생 고유 키(학번) 표시 개선
+**변경 파일:**
+- `frontend/src/pages/Students.tsx` - 학번 칼럼 헤더 및 스타일 변경
+
+**기능 설명:**
+- 테이블 칼럼 헤더를 "학번"에서 "학번 (고유ID)"로 변경
+- 학번을 배지 스타일로 표시 (배경색, 테두리, 모노스페이스 폰트)
+- 학생 이름이 중복될 수 있으므로 학번이 고유 식별자임을 시각적으로 강조
+
+```tsx
+// Students.tsx
+<th>학번 (고유ID)</th>
+
+<td className="px-6 py-4">
+  <span className="px-2 py-1 bg-primary/20 text-primary rounded font-mono text-sm">
+    {student.student_number}
+  </span>
+</td>
+```
+
+**UI 변경:**
+| 변경 전 | 변경 후 |
+|---------|---------|
+| 학번 | 학번 (고유ID) |
+| 2024001 (일반 텍스트) | `2024001` (배지 스타일) |
+
+---
+
+#### 12.5 동일 과정 중복 수강 방지 기능 추가
+**변경 파일:**
+- `backend/app/routers/students.py` - `enroll_student` 엔드포인트에 중복 체크 로직 추가
+
+**기능 설명:**
+- 학생이 이미 해당 과정의 다른 반에 등록되어 있는 경우 수강 신청 거부
+- 같은 과정의 여러 반에 중복 등록 방지
+- 오류 메시지: "이미 해당 과정의 다른 반에 등록되어 있습니다"
+
+```python
+# students.py - enroll_student 함수
+# Check if already enrolled in another class of the same course
+target_class = db.query(Class).filter(Class.id == str(enrollment.class_id)).first()
+if not target_class:
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="반을 찾을 수 없습니다"
+    )
+
+# Find all classes in the same course and check enrollment
+same_course_classes = db.query(Class).filter(Class.course_id == target_class.course_id).all()
+same_course_class_ids = [cls.id for cls in same_course_classes]
+
+existing_in_course = db.query(Enrollment).filter(
+    Enrollment.student_id == str(student_id),
+    Enrollment.class_id.in_(same_course_class_ids),
+    Enrollment.dropped_at.is_(None)
+).first()
+if existing_in_course:
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="이미 해당 과정의 다른 반에 등록되어 있습니다"
+    )
+```
+
+**비즈니스 로직:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    수강 신청 검증 흐름                        │
+├─────────────────────────────────────────────────────────────┤
+│  1. 학생 존재 여부 확인                                      │
+│  2. 동일 반 중복 등록 체크 (기존 로직)                        │
+│  3. [신규] 동일 과정 내 다른 반 등록 여부 체크                 │
+│     - 대상 반의 과정 ID 조회                                 │
+│     - 해당 과정의 모든 반 ID 목록 조회                        │
+│     - 학생의 수강 이력에서 해당 반들에 대한 등록 여부 확인     │
+│  4. 수강 신청 처리                                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 테스트 결과 요약
+
+| 기능 | 테스트 결과 | 비고 |
+|------|:----------:|------|
+| 평가항목 수정 | ✅ 성공 | 이름, 가중치, 만점 수정 가능 |
+| 평가항목 삭제 | ✅ 성공 | 확인 대화상자 후 삭제 |
+| 반 이름 중복 체크 | ✅ 성공 | 동일 이름 생성 시 오류 메시지 표시 |
+| 반 삭제 | ✅ 성공 | 확인 대화상자 후 삭제 |
+| 학생 고유 키 표시 | ✅ 성공 | 배지 스타일 + 헤더 변경 |
+| 동일 과정 중복 수강 방지 | ✅ 성공 | A반 등록 후 B반 등록 시 오류 |
+
+---
+
+## 13. 결론
 
 본 시스템은 FastAPI + PostgreSQL + React 기술 스택을 기반으로 한 완전한 성적 및 출결 관리 시스템입니다.
 
