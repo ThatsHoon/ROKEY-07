@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { gradesApi, coursesApi, studentsApi } from '../services/api'
+import { gradesApi, coursesApi } from '../services/api'
 import type { Grade, Evaluation, EvaluationType, Course, Class } from '../types'
 import { Filter, Plus, TrendingUp, Edit, X, Save } from 'lucide-react'
 
